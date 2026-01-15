@@ -222,8 +222,8 @@ class CleanViteJs extends Command
             }
             $flag = true;
         }
-        if(strpos($file, '"btSslList"')!==false && strpos($filepath, '/useStore')){ //site-ssl
-            $file = str_replace('"btSslList"', '"currentCertInfo"', $file);
+        if(strpos($file, '"busSslList"')!==false && strpos($filepath, '/useStore')){ //site-ssl
+            $file = str_replace('"busSslList"', '"currentCertInfo"', $file);
             $flag = true;
         }
 
@@ -231,7 +231,9 @@ class CleanViteJs extends Command
             $code = $this->getExtendFunction($file, '"商用SSL"', '{', '}');
             $file = str_replace($code, '', $file);
             $code = $this->getExtendFunction($file, '"宝塔证书"', '{', '}');
-            $file = str_replace($code, '', $file);
+            if($code){
+                $file = str_replace($code, '', $file);
+            }
             for($i=0;$i<3;$i++){
                 $code = $this->getExtendCode($file, ',"联系客服"', 2, '[', ']');
                 if($code){
@@ -241,7 +243,7 @@ class CleanViteJs extends Command
             $flag = true;
         }
         if(strpos($file, '"SSL-CERTIFICATE-STORE"')!==false){ //ssl
-            $file = str_replace('("bt")', '("encrypt")', $file);
+            $file = str_replace('("ssl")', '("encrypt")', $file);
             $flag = true;
         }
 

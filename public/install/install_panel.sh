@@ -358,7 +358,7 @@ Set_Repo_Url(){
 		if { [ "${NODE_STATUS}" != "200" ] && [ "${NODE_STATUS}" != "301" ]; } || [ "${TIME_TOTAL}" -ge "500" ] || [ "${SOURCE_URL_CHECK}" ]; then
 			\cp -rpa /etc/apt/sources.list /etc/apt/sources.list.btbackup
 			apt_lists=(mirrors.cloud.tencent.com  mirrors.163.com repo.huaweicloud.com mirrors.tuna.tsinghua.edu.cn mirrors.aliyun.com mirrors.ustc.edu.cn )
-			apt_lists=(mirrors.cloud.tencent.com  mirrors.163.com repo.huaweicloud.com mirrors.aliyun.com mirrors.ustc.edu.cn )
+			apt_lists=(mirrors.cloud.tencent.com repo.huaweicloud.com mirrors.aliyun.com mirrors.ustc.edu.cn mirrors.163.com)
 			for list in ${apt_lists[@]};
 			do
 				NODE_CHECK=$(curl --connect-timeout 3 -m 3 2>/dev/null -w "%{http_code} %{time_total}" ${list} -o /dev/null)
@@ -715,7 +715,7 @@ Install_RPM_Pack(){
 
 	sed -i 's/SELINUX=enforcing/SELINUX=disabled/' /etc/selinux/config
 	#yum remove -y python-requests python3-requests python-greenlet python3-greenlet
-	yumPacks="libcurl-devel wget tar gcc make zip unzip openssl openssl-devel gcc libxml2 libxml2-devel libxslt* zlib zlib-devel libjpeg-devel libpng-devel libwebp libwebp-devel freetype freetype-devel lsof pcre pcre-devel vixie-cron crontabs icu libicu-devel c-ares libffi-devel bzip2-devel ncurses-devel sqlite-devel readline-devel tk-devel gdbm-devel db4-devel libpcap-devel xz-devel qrencode at mariadb rsyslog net-tools firewalld"
+	yumPacks="libcurl-devel wget tar gcc make zip unzip openssl openssl-devel gcc libxml2 libxml2-devel libxslt* zlib zlib-devel libjpeg-devel libpng-devel libwebp libwebp-devel freetype freetype-devel lsof pcre pcre-devel vixie-cron crontabs icu libicu-devel c-ares libffi-devel bzip2-devel ncurses-devel sqlite-devel readline-devel tk-devel gdbm-devel db4-devel libpcap-devel xz-devel qrencode at rsyslog net-tools firewalld"
 	yum install -y ${yumPacks}
 
 	for yumPack in ${yumPacks}
@@ -729,6 +729,10 @@ Install_RPM_Pack(){
 	if [ -f "/usr/bin/dnf" ]; then
 		dnf install -y redhat-rpm-config
 	fi
+
+	# if [ ! -f "/usr/bin/mysql" ] && [ -f "/usr/sbin/mysql" ];then
+	# 	yum install 
+	# fi
 
 	ALI_OS=$(cat /etc/redhat-release |grep "Alibaba Cloud Linux release 3")
 	if [ -z "${ALI_OS}" ];then 
@@ -757,6 +761,7 @@ Install_Deb_Pack(){
 	apt-get install bash -y
 	if [ -f "/usr/bin/bash" ];then
 		ln -sf /usr/bin/bash /bin/sh
+		ln -sf /usr/bin/bash /usr/bin/sh
 	fi
 	apt-get install ruby -y
 	apt-get install lsb-release -y
@@ -777,7 +782,7 @@ Install_Deb_Pack(){
 		apt-get install curl -y
 	fi
 
-	debPacks="wget curl libcurl4-openssl-dev gcc make zip unzip tar openssl libssl-dev gcc libxml2 libxml2-dev zlib1g zlib1g-dev libjpeg-dev libpng-dev lsof libpcre3 libpcre3-dev cron net-tools swig build-essential libffi-dev libbz2-dev libncurses-dev libsqlite3-dev libreadline-dev tk-dev libgdbm-dev libdb-dev libdb++-dev libpcap-dev xz-utils git qrencode sqlite3 at mariadb-client rsyslog net-tools ufw";
+	debPacks="wget curl libcurl4-openssl-dev gcc make zip unzip tar openssl libssl-dev gcc libxml2 libxml2-dev zlib1g zlib1g-dev libjpeg-dev libpng-dev lsof libpcre3 libpcre3-dev cron net-tools swig build-essential libffi-dev libbz2-dev libncurses-dev libsqlite3-dev libreadline-dev tk-dev libgdbm-dev libdb-dev libdb++-dev libpcap-dev xz-utils git qrencode sqlite3 at rsyslog net-tools ufw";
 	apt-get install -y $debPacks --force-yes
 
 	for debPack in ${debPacks}
@@ -787,7 +792,11 @@ Install_Deb_Pack(){
 			apt-get install -y $debPack
 		fi
 	done
-
+	
+	if [ ! -f "/usr/bin/mysql" ] && [ -f "/usr/sbin/mysql" ];then
+		apt-get install mysql-client -y
+	fi
+	
 	if [ ! -d '/etc/letsencrypt' ];then
 		mkdir -p /etc/letsencryp
 		mkdir -p /var/spool/cron
@@ -1218,6 +1227,7 @@ Install_Bt(){
 	chmod +x /etc/init.d/bt
 	chmod -R 600 ${setup_path}/server/panel
 	chmod -R +x ${setup_path}/server/panel/script
+	chmod -R 700 $pyenv_path/pyenv/bin
 	ln -sf /etc/init.d/bt /usr/bin/bt
 	echo "${panelPort}" > ${setup_path}/server/panel/data/port.pl
 	wget -O /etc/init.d/bt ${download_Url}/install/src/bt7.init -T 15
@@ -1271,7 +1281,7 @@ Set_Bt_Panel(){
 		auth_path=$SAFE_PATH
 		echo "/${auth_path}" > ${admin_auth}
 	fi
-	chmod -R 700 $pyenv_path/pyenv/bin
+
 	if [ ! -f "/www/server/panel/pyenv/n.pl" ];then
 		btpip install docxtpl==0.16.7
 		/www/server/panel/pyenv/bin/pip3 install pymongo
@@ -1492,6 +1502,62 @@ Setup_Count(){
 	fi
 	echo /www > /var/bt_setupPath.conf
 }
+
+Start_Ip_Cert_Async(){
+    IP_SSL_PID=""
+    if [ -z "${ipv4_address}" ];then
+        return
+    fi
+
+    if [ "$SET_SSL" == "true" ];then
+        if [ -f "/www/server/panel/script/auto_apply_ip_ssl.py" ];then
+             acme_connect_url="https://acme-v02.api.letsencrypt.org"
+             acme_http_code=$(curl -sS --connect-timeout 2 -m 60 -o /dev/null -w "%{http_code}" "$acme_connect_url")
+             if [ "$acme_http_code" == "200" ];then
+                echo "正在后台开启受信任宝塔面板ip证书..."
+                (
+                    timeout 60 $pyenv_path/pyenv/bin/python3.7 /www/server/panel/script/auto_apply_ip_ssl.py -ips ${ipv4_address} -path /www/server/panel/ssl > /tmp/auto_apply_ip_ssl.log 2>&1
+                    echo $? > /tmp/ip_ssl_exit_code.pl
+                ) &
+                IP_SSL_PID=$!
+             fi
+        fi
+    fi
+}
+
+Check_Ip_Cert_Async(){
+    if [ -z "$IP_SSL_PID" ]; then
+		if [ "$acme_http_code" != "200" ];then
+			echo "受信ip证书申请失败，exit code=$acme_http_code"
+			echo "转为使用默认自签证书，后续可手动在面板设置中重新使用Let's encrypt申请ip证书"
+			return
+		fi
+		echo "受信宝塔面板ip证书开启成功"
+        /etc/init.d/bt restart
+        return
+    fi
+
+	echo "正在检查受信宝塔面板ip证书开启状态..."
+    wait $IP_SSL_PID
+    
+    if [ -f "/tmp/ip_ssl_exit_code.pl" ]; then
+        rc=$(cat /tmp/ip_ssl_exit_code.pl)
+        rm -f /tmp/ip_ssl_exit_code.pl
+    else
+        rc=1
+    fi
+
+    if [ $rc -eq 0 ]; then
+        echo "受信宝塔面板ip证书开启成功"
+        /etc/init.d/bt restart
+    elif [ $rc -eq 124 ]; then
+        echo "受信ip证书申请超时（60秒）"
+        echo "转为使用默认自签证书，后续可手动在面板设置中重新使用Let's encrypt申请ip证书"
+    else
+        echo "受信ip证书申请失败，exit code=$rc"
+        echo "转为使用默认自签证书，后续可手动在面板设置中重新使用Let's encrypt申请ip证书"
+    fi
+}
 Install_Main(){
 	Ready_Check
 	#Set_Ssl
@@ -1515,9 +1581,11 @@ Install_Main(){
 		Install_Other_Pack
 	fi
 
+	Set_Firewall
 	Install_Python_Lib
 	Install_Bt
-	
+
+    Get_Ip_Address
 
 	Set_Bt_Panel
 	Service_Add
