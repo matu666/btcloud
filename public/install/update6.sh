@@ -219,6 +219,8 @@ fi
 
 btpip uninstall enum34 -y
 
+btpip install asn1crypto==1.5.1 cbor2==5.4.6
+
 GEOIP_C=$(echo $pip_list|grep geoip2)
 if [ -z "${GEOIP_C}" ];then
 	btpip install geoip2==4.7.0

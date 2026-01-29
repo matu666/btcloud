@@ -1229,6 +1229,8 @@ Install_Bt(){
 	chmod -R +x ${setup_path}/server/panel/script
 	chmod -R 700 $pyenv_path/pyenv/bin
 	ln -sf /etc/init.d/bt /usr/bin/bt
+	chmod +x /www/server/panel/script/btcli.py
+	ln -sf /www/server/panel/script/btcli.py /usr/bin/btcli
 	echo "${panelPort}" > ${setup_path}/server/panel/data/port.pl
 	wget -O /etc/init.d/bt ${download_Url}/install/src/bt7.init -T 15
 	wget -O /www/server/panel/init.sh ${download_Url}/install/src/bt7.init -T 15
@@ -1282,6 +1284,7 @@ Set_Bt_Panel(){
 		echo "/${auth_path}" > ${admin_auth}
 	fi
 
+	btpip install asn1crypto==1.5.1 cbor2==5.4.6
 	if [ ! -f "/www/server/panel/pyenv/n.pl" ];then
 		btpip install docxtpl==0.16.7
 		/www/server/panel/pyenv/bin/pip3 install pymongo
@@ -1364,12 +1367,16 @@ Set_Firewall(){
 	if [ "${PM}" = "apt-get" ]; then
 		#apt-get install -y ufw
 		if [ -f "/usr/sbin/ufw" ];then
+			if [ "${PANEL_PORT}" ];then
+				ufw allow ${PANEL_PORT}/tcp
+			fi 
 			ufw allow 20/tcp
 			ufw allow 21/tcp
 			ufw allow 22/tcp
 			ufw allow 80/tcp
 			ufw allow 443/tcp
 			ufw allow 888/tcp
+			ufw allow 8888/tcp
 			ufw allow ${panelPort}/tcp
 			ufw allow ${sshPort}/tcp
 			ufw allow 39000:40000/tcp
@@ -1412,6 +1419,10 @@ Set_Firewall(){
 			firewall-cmd --permanent --zone=public --add-port=22/tcp > /dev/null 2>&1
 			firewall-cmd --permanent --zone=public --add-port=80/tcp > /dev/null 2>&1
 			firewall-cmd --permanent --zone=public --add-port=443/tcp > /dev/null 2>&1
+			firewall-cmd --permanent --zone=public --add-port=8888/tcp > /dev/null 2>&1
+			if [ "${PANEL_PORT}" ];then
+				firewall-cmd --permanent --zone=public --add-port=${PANEL_PORT}/tcp > /dev/null 2>&10
+			fi
 			firewall-cmd --permanent --zone=public --add-port=${panelPort}/tcp > /dev/null 2>&1
 			firewall-cmd --permanent --zone=public --add-port=${sshPort}/tcp > /dev/null 2>&1
 			firewall-cmd --permanent --zone=public --add-port=39000-40000/tcp > /dev/null 2>&1
@@ -1526,6 +1537,9 @@ Start_Ip_Cert_Async(){
 }
 
 Check_Ip_Cert_Async(){
+	if [ "$SET_SSL" != "true" ];then
+		return
+	fi
     if [ -z "$IP_SSL_PID" ]; then
 		if [ "$acme_http_code" != "200" ];then
 			echo "受信ip证书申请失败，exit code=$acme_http_code"
@@ -1560,7 +1574,7 @@ Check_Ip_Cert_Async(){
 }
 Install_Main(){
 	Ready_Check
-	#Set_Ssl
+	Set_Ssl
 	startTime=`date +%s`
 	Lock_Clear
 	System_Check
@@ -1586,12 +1600,12 @@ Install_Main(){
 	Install_Bt
 
     Get_Ip_Address
+	Start_Ip_Cert_Async
 
 	Set_Bt_Panel
 	Service_Add
-	Set_Firewall
 
-	Get_Ip_Address
+    Check_Ip_Cert_Async
 	Setup_Count ${IDC_CODE}
 	Add_lib_Install
 }

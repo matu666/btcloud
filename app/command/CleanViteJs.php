@@ -164,6 +164,10 @@ class CleanViteJs extends Command
             $file = preg_replace('!computed\(\(\)=>"input"===\w+\.\w+\.type\)!', '!1', $file);
             $file = preg_replace('!computed\(function\(\)\{return"calc"===\w+\.\w+\.type\}\)!', '!1', $file);
             $file = preg_replace('!computed\(function\(\)\{return"input"===\w+\.\w+\.type\}\)!', '!1', $file);
+            $file = preg_replace('!computed\(\(\)=>\w+\.\w+\.type==="calc"\)!', '!1', $file);
+            $file = preg_replace('!computed\(\(\)=>\w+\.\w+\.type==="input"\)!', '!1', $file);
+            $file = preg_replace('!computed\(function\(\)\{return\w+\.\w+\.type==="calc"\}\)!', '!1', $file);
+            $file = preg_replace('!computed\(function\(\)\{return\w+\.\w+\.type==="input"\}\)!', '!1', $file);
             $code = $this->getExtendCode($file, '"自动部署"', 2);
             if($code){
                 $file = str_replace($code.',', '', $file);
@@ -220,6 +224,7 @@ class CleanViteJs extends Command
                 $code2 = str_replace($this->getExtendFunction($code, '"购买商业证书"'), '', $code2);
                 $file = str_replace($code, $code2, $file);
             }
+            $file = str_replace('.value="busSslList"', '.value="letsEncryptList"', $file);
             $flag = true;
         }
         if(strpos($file, '"busSslList"')!==false && strpos($filepath, '/useStore')){ //site-ssl
